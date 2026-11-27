@@ -1,0 +1,25 @@
+{
+  "comment": "Excerpts of self-generated text shown on the page, by index into tools/examples_raw.json (seed-0 pools). Chosen by reading every candidate: representative of what the paper reports (drift to high entropy, document starts written by the model, code and other languages), and free of offensive content and of invented statements about real people or organizations. Raw model output otherwise, unedited.",
+  "excerpts": [
+    {"model": "llama-3.2-1b", "kind": "exact", "index": 2,
+     "note": "Llama-3.2-1B writes its own document boundaries (each begin-of-text token is a BOS inside the window) and has drifted to noise by the end of the 2048 tokens."},
+    {"model": "llama-3.2-1b", "kind": "exact", "index": 5,
+     "note": "Another exact sample of Llama-3.2-1B: short documents at the start, random characters at the end."},
+    {"model": "qwen3-1.7b", "kind": "exact", "index": 7,
+     "note": "Qwen3-1.7B: a coherent exercise at the start, high-entropy strings at the end."},
+    {"model": "qwen3-1.7b", "kind": "exact", "index": 2,
+     "note": "Qwen3-1.7B often writes code; this sample degenerates within the same program."},
+    {"model": "opt-1.3b", "kind": "exact", "index": 12,
+     "note": "OPT-1.3B does not drift: forum-style text at the start and still fluent at the end."},
+    {"model": "llama-3.2-1b", "kind": "document", "index": 4,
+     "note": "A self-generated document of Llama-3.2-1B in Polish: the models write in several languages and formats."},
+    {"model": "llama-3.2-1b", "kind": "document", "index": 3,
+     "note": "A short question-and-answer document of Llama-3.2-1B, ended by the model's own end-of-text token."},
+    {"model": "qwen3-1.7b", "kind": "document", "index": 3,
+     "note": "A Qwen3-1.7B document: a Python script, cut at the 512-token limit."},
+    {"model": "qwen3-1.7b", "kind": "document", "index": 7,
+     "note": "A Qwen3-1.7B document: a reading exercise."},
+    {"model": "opt-1.3b", "kind": "document", "index": 14,
+     "note": "An OPT-1.3B document: a short forum thread."}
+  ]
+}

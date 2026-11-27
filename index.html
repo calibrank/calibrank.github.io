@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When Calibration Data Become Training Data</title>
+<meta name="description" content="Interactive companion to the paper: which calibration data should a learned low-rank compressor of a language model learn from? Six sources, four models, 459 runs.">
+<link rel="canonical" href="https://calibrank.github.io/">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="article">
+<meta property="og:title" content="When Calibration Data Become Training Data">
+<meta property="og:description" content="Specialization and self-generated text in learned low-rank compression of large language models. Informatics 13(11), 201 (2026).">
+<meta property="og:url" content="https://calibrank.github.io/">
+<meta property="og:image" content="https://calibrank.github.io/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/source-serif-4-latin-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/css/site.css">
+<link rel="stylesheet" href="assets/js/lib/katex/katex.min.css">
+<script>
+  // apply a remembered theme before the first paint
+  try {
+    var t = new URLSearchParams(location.search).get("theme") || localStorage.getItem("theme");
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ScholarlyArticle",
+  "headline": "When Calibration Data Become Training Data: Specialization and Self-Generated Text in Learned Low-Rank Compression of Large Language Models",
+  "author": [{"@type": "Person", "name": "Van Tien Pham", "identifier": "https://orcid.org/0000-0003-3890-7188",
+    "affiliation": {"@type": "Organization", "name": "Faculty of Information Technology, Ton Duc Thang University"}}],
+  "datePublished": "2026-11-19",
+  "isPartOf": {"@type": "PublicationIssue", "issueNumber": "11", "isPartOf": {"@type": "PublicationVolume", "volumeNumber": "13",
+    "isPartOf": {"@type": "Periodical", "name": "Informatics", "issn": "2227-9709"}}},
+  "sameAs": "https://doi.org/10.3390/informatics13110201",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "codeRepository": "https://github.com/calibrank/calibrank"
+}
+</script>
+<script defer src="assets/js/lib/d3/d3.min.js"></script>
+<script defer src="assets/js/lib/katex/katex.min.js"></script>
+<script defer src="assets/js/lib/katex/auto-render.min.js"></script>
+<script type="module" src="assets/js/main.js"></script>
+</head>
+<body>
+<a class="visually-hidden" href="#summary">Skip to the summary</a>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#top" aria-label="Back to the top">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="9" width="2.6" height="12" rx="1.3" fill="var(--s-wikitext2)"/><rect x="5.8" y="5" width="2.6" height="16" rx="1.3" fill="var(--s-c4)"/><rect x="9.6" y="3" width="2.6" height="18" rx="1.3" fill="var(--s-slimpajama)"/><rect x="13.4" y="7" width="2.6" height="14" rx="1.3" fill="var(--s-alpaca)"/><rect x="17.2" y="11" width="2.6" height="10" rx="1.3" fill="var(--s-selfgen)"/><rect x="21" y="6" width="2.6" height="15" rx="1.3" fill="var(--s-selfdoc)"/></svg>
+      <span class="brand-title">When Calibration Data Become Training Data</span>
+    </a>
+    <nav class="navlinks" aria-label="Sections">
+      <a href="#summary">Summary</a>
+      <a href="#method">Method</a>
+      <a href="#sources">Sources</a>
+      <a href="#results">Results</a>
+      <a href="#practice">In practice</a>
+      <a href="#reproduce">Reproduce</a>
+      <a href="#cite">Cite</a>
+    </nav>
+    <button class="theme-btn" type="button" aria-label="Switch theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+    </button>
+    <button class="menu-btn" type="button" aria-label="Sections" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+  <div class="progress" aria-hidden="true"></div>
+</header>
+<nav class="mobile-menu" aria-label="Sections">
+  <a href="#summary">Summary</a><a href="#method">Method</a><a href="#sources">Sources</a><a href="#results">Results</a>
+  <a href="#practice">In practice</a><a href="#reproduce">Reproduce</a><a href="#cite">Cite</a>
+</nav>
+
+<main class="page" id="top">
+
+<!-- =============================================================== hero -->
+<div class="hero l-wide">
+  <div class="kicker">
+    <span><em>Informatics</em> 13(11), 201</span><span class="dot"></span>
+    <span>19 November 2026</span><span class="dot"></span>
+    <span class="oa"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 7V5a3 3 0 0 1 5.8-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7.5" rx="1.8" fill="currentColor"/></svg>Open access</span>
+  </div>
+  <h1 class="title">When Calibration Data Become Training&nbsp;Data</h1>
+  <p class="subtitle">Specialization and Self-Generated Text in Learned Low-Rank Compression of Large Language Models</p>
+  <div class="byline">
+    <span class="author">Van Tien Pham</span>
+    <a class="orcid" href="https://orcid.org/0000-0003-3890-7188" aria-label="ORCID 0000-0003-3890-7188" title="ORCID 0000-0003-3890-7188">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#a6ce39"/><path d="M10.4 23.2H8.6V11.1h1.8zM9.5 9.6a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4zM13 11.1h4.8c4.6 0 6.6 3.3 6.6 6.1 0 3-2.4 6.1-6.6 6.1H13zm1.8 10.6h2.9c4.1 0 5-3.1 5-4.5 0-2.3-1.5-4.5-5-4.5h-2.9z" fill="#fff"/></svg>
+    </a>
+    <span class="affil">Faculty of Information Technology, Ton Duc Thang University, Ho Chi Minh City, Vietnam</span>
+  </div>
+  <div class="actions">
+    <a class="btn" href="https://doi.org/10.3390/informatics13110201">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 1.8h5.2L12.5 5v9.2H4z"/><path d="M9 1.8V5h3.3M6 8h4.5M6 10.6h4.5"/></svg>Read the paper</a>
+    <a class="btn ghost" href="https://www.mdpi.com/2227-9709/13/11/201/pdf">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M8 2v8.5M4.6 7.4L8 10.8l3.4-3.4M3 13.8h10"/></svg>PDF</a>
+    <a class="btn ghost" href="https://github.com/calibrank/calibrank">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Code and run records</a>
+    <a class="btn ghost" href="#cite">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5h4v4H4.5c0 1.6.6 2.5 2 3M9 4.5h4v4h-2.5c0 1.6.6 2.5 2 3"/></svg>Cite</a>
+  </div>
+</div>
+
+<figure class="fig l-wide hero-fig" id="fig-hero" data-fig="hero">
+  <div class="fig-frame">
+    <div class="fig-head">
+      <div>
+        <h2 class="fig-title">Every dot is a compressed model</h2>
+        <p class="fig-sub">132 language models compressed by 30% or 50%, each calibrated on one of six sources: three model families with three seeds each, and Llama-3.1-8B. Follow the three steps, or let them play.</p>
+      </div>
+      <div class="steps" role="group" aria-label="Training stage"></div>
+    </div>
+    <div class="controls"></div>
+    <div class="fig-body"><p class="status">Loading the records…</p></div>
+    <p class="state-caption" aria-live="polite"></p>
+    <div class="fig-foot">
+      <p class="caption">Perplexity on WikiText-2 (vertical) and C4 (horizontal) of the compressed models of the extended evaluation, as a multiple of the dense model's (steps 1–2) or of the best calibration source in the same setting (step 3). Log scales. Hover for a model's numbers.</p>
+      <div class="fig-tools"></div>
+    </div>
+  </div>
+</figure>
+
+<!-- =============================================================== summary -->
+<section class="chapter" id="summary" aria-labelledby="h-summary">
+  <div class="chapter-head" style="margin-top:56px">
+    <p class="eyebrow">The paper in one minute</p>
+    <h2 id="h-summary">Calibration data used to be a statistic. Now they are training data.</h2>
+  </div>
+  <p class="lede">Large language models can be shrunk by replacing each weight matrix with the product of two thin ones. Which directions to drop is decided by a small <em>calibration set</em>: a few hundred windows of text passed through the model. When the compressed model is then trained to imitate the original on those windows, as in learned subspace projections (LSP), the calibration set stops being a sample from which to estimate statistics and becomes the data the model is fitted on. It is still chosen by convention.</p>
+  <p>This study compresses OPT-1.3B, Llama-3.2-1B and Qwen3-1.7B by 30% and 50% with LSP, calibrated on six sources at a matched budget, over three seeds, and repeats the comparison on Llama-3.1-8B, with a second learned compressor and on an instruction-tuned model. It does not propose a new compression method; it measures what the choice of calibration data does.</p>
+
+  <div class="findings l-wide">
+    <a class="finding reveal" href="#training">
+      <span class="fig-label">Before training</span>
+      <span class="fig-num">594<small>×</small></span>
+      <p>The calibration source alone changes the perplexity of an untrained compressed model up to 594-fold. Training removes most of this gap.</p>
+      <span class="go">Training-free truncation →</span>
+    </a>
+    <a class="finding reveal" href="#specialization">
+      <span class="fig-label">After training</span>
+      <span class="fig-num">86 <small>of 90</small></span>
+      <p>held-out comparisons in which a source best preserves its own text. Training turns the dependence on the data into specialization.</p>
+      <span class="go">What each source preserves →</span>
+    </a>
+    <a class="finding reveal" href="#specialization">
+      <span class="fig-label">The customary choice</span>
+      <span class="fig-num">9.6<small>×</small></span>
+      <p>WikiText-2, the usual calibration set, multiplies the divergence on other text by up to 9.6 against the best source: the least general models.</p>
+      <span class="go">The specialization matrix →</span>
+    </a>
+    <a class="finding reveal" href="#uniform">
+      <span class="fig-label">No external data</span>
+      <span class="fig-num">6 <small>of 6</small></span>
+      <p>independent domains on which documents sampled from Llama-3.2-1B itself are the best calibration: the most uniformly faithful Llama models.</p>
+      <span class="go">Self-generated text →</span>
+    </a>
+    <a class="finding reveal" href="#first-token">
+      <span class="fig-label">The first token</span>
+      <span class="fig-num">36,834<small>×</small></span>
+      <p>the perplexity of a compressed Llama-3.1-8B on text that lacks the beginning-of-sequence token it was calibrated with.</p>
+      <span class="go">The BOS collapse →</span>
+    </a>
+    <a class="finding reveal" href="#behavior">
+      <span class="fig-label">Fidelity is not utility</span>
+      <span class="fig-num">50→14<small>%</small></span>
+      <p>of IFEval prompts followed by Llama-3.2-1B-Instruct after 30% compression, at best. Every source loses most instruction following, and multi-step reasoning.</p>
+      <span class="go">Beyond perplexity →</span>
+    </a>
+  </div>
+
+  <details class="note" style="margin-top:28px">
+    <summary style="cursor:pointer;font-weight:650;color:var(--ink)">Abstract</summary>
+    <p style="margin:10px 0 0;font-family:var(--font-serif);font-size:16.5px;color:var(--ink)">Low-rank compression shrinks large language models by factorizing their weights, guided by a small calibration set. When the factorization is learned by distillation, as in learned subspace projections (LSP), the calibration set becomes training data, yet is still chosen by convention. We compressed OPT-1.3B, Llama-3.2-1B, and Qwen3-1.7B by 30% and 50% with LSP, calibrated on six sources at a matched budget (WikiText-2, C4, SlimPajama, Alpaca, and two kinds of self-generated text) over three seeds, and repeated the comparison on Llama-3.1-8B and with a second compressor. Training removed most of the up to 600-fold perplexity differences between untrained models but turned them into specialization: each source best preserved its own text, and WikiText-2, the customary choice, gave the least general models. Zero-shot accuracy slightly favored instruction data, through content rather than template. Self-generated documents gave the most uniformly faithful Llama models without external data, whereas exact samples of the model, whose expected training objective is the sequence-level divergence, failed on Qwen3-1.7B. The initialization’s domain survived training, and compressed Llama models collapsed without their calibration beginning-of-sequence token. With every source, compression lost most instruction following and multi-step reasoning. These results indicate that calibration sources should be reported with every perplexity.</p>
+  </details>
+</section>
+
+<!-- =============================================================== why -->
+<section class="chapter" id="question" aria-labelledby="h-question">
+  <div class="chapter-head">
+    <p class="eyebrow">Background</p>
+    <h2 id="h-question">Why a compressor specializes</h2>
+  </div>
+  <p>Pretrained weight matrices are not low-rank, but the activations they act on are. A low-rank compressor therefore needs to know which directions of each layer's input the model actually uses, and it learns this from the calibration windows. A training-free method such as SVD-LLM sees those windows only through their second-order statistics, and reports that their size, seed and source change its results by at most 3%.</p>
+  <p>A learned method fits them. In LSP the compressed model is optimized to agree with the dense model on the calibration windows and nowhere else, so which data to fit becomes a modeling decision. Feature selection has long known the consequence: a selection fitted to one distribution preserves what that distribution exercises. The toy below shows the mechanism in three dimensions.</p>
+
+  <figure class="fig l-wide" id="fig-toy" data-fig="toy">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">A toy: compressing three-dimensional activations to a plane</h3>
+        <p class="fig-sub">Two synthetic domains produce flat clouds of activations in different planes. Compressing to rank two removes the one direction along which the calibration data vary least.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot">
+        <p class="caption">For an identity layer, the best orthogonal projector and the whitened truncation both remove the direction of least calibration variance. Synthetic data: an illustration of the mechanism, not a result of the paper.</p>
+        <div class="fig-tools"></div>
+      </div>
+    </div>
+  </figure>
+
+  <p>Real models are not three-dimensional, and LSP does more than keep the directions of largest variance: it trains the projectors against the dense model's output distribution. The question is whether the same specialization survives that training, and at what cost. In practice the choice is made by convention: WikiText-2 for perplexity tables, and Alpaca or C4 for zero-shot accuracy. The pretraining corpus of an open-weight model is rarely released, and domain data may be proprietary or licensed for research only.</p>
+</section>
+
+<!-- =============================================================== method -->
+<section class="chapter" id="method" aria-labelledby="h-method">
+  <div class="chapter-head">
+    <p class="eyebrow">Method</p>
+    <h2 id="h-method">Learned subspace projections</h2>
+  </div>
+  <p>Consider a linear layer \(\mathbf{y} = \mathbf{W}\mathbf{x} + \mathbf{b}\). To remove \(k\) directions from its input, LSP applies the orthogonal projector \(\mathbf{P} = \mathbf{I} - \mathbf{U}\mathbf{U}^\top\), where \(\mathbf{U} = \operatorname{qf}(\mathbf{V})\) is the orthonormal factor of a trainable matrix \(\mathbf{V}\) with \(k\) columns. The projected layer has rank at most \(d_\text{in} - k\) and merges exactly into two thin factors:</p>
+  \[ \mathbf{W}\mathbf{P} = (\mathbf{W}\mathbf{U}_\perp)\,\mathbf{U}_\perp^\top = \mathbf{B}\mathbf{A}, \qquad \mathbf{B}\in\mathbb{R}^{d_\text{out}\times r},\; \mathbf{A}\in\mathbb{R}^{r\times d_\text{in}},\; r = d_\text{in}-k. \]
+  <p>Layers that read the same activation (the query, key and value projections; the gate and up projections) share one projector. After training the projectors merge into the factors, and the deployed model contains no operation specific to LSP: it is an ordinary dense model with smaller matrices.</p>
+
+  <figure class="fig" id="fig-merge" data-fig="merge">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">How much a factorization stores</h3>
+        <p class="fig-sub">Matrices drawn to scale for two layers of Llama-3.2-1B.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">The rank depends only on the shapes, so every calibration source compresses every unit to the same rank: the comparison isolates where the data act. A unit stays dense when its factors would store more weights than its matrices.</p><div class="fig-tools"></div></div>
+    </div>
+  </figure>
+
+  <p>The projectors start from the whitened truncation of SVD-LLM, computed from the Gram matrix of each layer's input on the calibration windows. They are then trained jointly, with every pretrained weight frozen, to minimize the token-averaged divergence of the compressed model \(q\) from the dense model \(p\) on calibration windows \(\mathbf{x} = (x_1, \dots, x_T)\) drawn from the calibration distribution \(\mathcal{D}\):</p>
+  \[ \mathcal{L} \;=\; \mathbb{E}_{\mathbf{x}\sim\mathcal{D}}\; \frac{1}{T}\sum_{t=1}^{T} \mathrm{KL}\big(p(\cdot\mid x_{\le t}) \,\big\|\, q(\cdot\mid x_{\le t})\big). \]
+  <p>The calibration set therefore enters at three points:</p>
+
+  <figure class="fig l-wide pipeline" aria-label="Where calibration data enter learned subspace projections">
+    <svg viewBox="0 0 1040 250" role="img" aria-labelledby="pipe-t pipe-d">
+      <title id="pipe-t">Where the calibration data enter LSP</title>
+      <desc id="pipe-d">Calibration windows feed three stages: Gram matrices for the whitened initialization, training windows for the KL objective, and validation windows for early stopping. The trained projectors merge into low-rank factors.</desc>
+      <defs><marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker></defs>
+      <rect class="box-strong" x="8" y="80" width="190" height="90" rx="12"/>
+      <text class="t-md" x="103" y="112" text-anchor="middle">Calibration data</text>
+      <text class="t-sm" x="103" y="134" text-anchor="middle">512 windows × 2,048 tokens</text>
+      <text class="t-sm" x="103" y="152" text-anchor="middle">+ 32 validation windows</text>
+      <g fill="none">
+        <path class="data-flow" d="M198 110 C 240 110, 240 45, 282 45" stroke="var(--s-wikitext2)" marker-end="url(#arw)"/>
+        <path class="data-flow" d="M198 125 L 282 125" stroke="var(--s-c4)" marker-end="url(#arw)"/>
+        <path class="data-flow" d="M198 140 C 240 140, 240 205, 282 205" stroke="var(--s-slimpajama)" marker-end="url(#arw)"/>
+      </g>
+      <rect class="box" x="284" y="15" width="346" height="60" rx="10"/>
+      <circle cx="306" cy="45" r="11" fill="var(--s-wikitext2)"/><text class="badge" x="306" y="49" text-anchor="middle">1</text>
+      <text class="t-md" x="326" y="40">Gram matrices of each layer's input</text>
+      <text class="t-sm" x="326" y="60">→ whitened initialization of the projectors</text>
+      <rect class="box" x="284" y="95" width="346" height="60" rx="10"/>
+      <circle cx="306" cy="125" r="11" fill="var(--s-c4)"/><text class="badge" x="306" y="129" text-anchor="middle">2</text>
+      <text class="t-md" x="326" y="120">Training windows</text>
+      <text class="t-sm" x="326" y="140">→ minimize KL to the dense model, 8 epochs</text>
+      <rect class="box" x="284" y="175" width="346" height="60" rx="10"/>
+      <circle cx="306" cy="205" r="11" fill="var(--s-slimpajama)"/><text class="badge" x="306" y="209" text-anchor="middle">3</text>
+      <text class="t-md" x="326" y="200">Validation windows</text>
+      <text class="t-sm" x="326" y="220">→ keep the epoch with the lowest KL</text>
+      <path class="flow" d="M630 45 C 686 45, 686 120, 736 122" marker-end="url(#arw)"/>
+      <path class="flow" d="M630 125 L 736 125" marker-end="url(#arw)"/>
+      <path class="flow" d="M630 205 C 686 205, 686 130, 736 128" marker-end="url(#arw)"/>
+      <rect class="box-strong" x="738" y="88" width="140" height="74" rx="12"/>
+      <text class="t-md" x="808" y="120" text-anchor="middle">Trained</text>
+      <text class="t-md" x="808" y="138" text-anchor="middle">projectors</text>
+      <path class="flow" d="M878 125 L 902 125" marker-end="url(#arw)"/>
+      <rect class="box" x="904" y="88" width="130" height="74" rx="12"/>
+      <text class="t-md" x="969" y="118" text-anchor="middle">Merged</text>
+      <text class="t-sm" x="969" y="138" text-anchor="middle">factors B·A</text>
+    </svg>
+  </figure>
+  <p>A training-free method uses only the first. Learned methods use all three, which is why the data matter more to them. Rank allocation follows the uniform rule of LSP and does not depend on the data, except in one control.</p>
+  <p class="note"><strong>Implementation.</strong> No implementation of LSP was released; the paper reimplements it in PyTorch. The reimplementation reproduces the published trained results within 6% at the ratios studied, but not the untrained initialization at high ratios. The difference is traced to which side of the square attention-output projections is projected (Appendix B of the paper); it does not change the ranking of calibration sources.</p>
+</section>
+
+<!-- =============================================================== sources -->
+<section class="chapter" id="sources" aria-labelledby="h-sources">
+  <div class="chapter-head">
+    <p class="eyebrow">Experimental design</p>
+    <h2 id="h-sources">Six calibration sources, one budget</h2>
+  </div>
+  <p>Every source supplies 512 training windows of 2,048 tokens, about one million tokens, plus 32 validation windows. Windows are built identically for every corpus: documents in random order, separated by the end-of-sequence (EOS) token and cut into windows that start with the beginning-of-sequence (BOS) token, for the models that have one.</p>
+  <ul class="clean">
+    <li><span class="sw" style="--c:var(--s-wikitext2)"></span><strong>WikiText-2</strong>: Wikipedia articles; the usual calibration set of perplexity-oriented compression.</li>
+    <li><span class="sw" style="--c:var(--s-c4)"></span><strong>C4</strong>: filtered web text; the default calibration set of pruning and quantization.</li>
+    <li><span class="sw" style="--c:var(--s-slimpajama)"></span><strong>SlimPajama</strong>: a deduplicated mixture of web crawl, C4, code, books, arXiv, Wikipedia and StackExchange; it approximates a pretraining mixture.</li>
+    <li><span class="sw" style="--c:var(--s-alpaca)"></span><strong>Alpaca</strong>: instruction–response pairs in the Alpaca template; the calibration set of the zero-shot experiments of SVD-LLM and LSP.</li>
+    <li><span class="sw" style="--c:var(--s-selfgen)"></span><strong>Self (seq.)</strong>: 2,048-token sequences sampled from the dense model itself, exactly, at temperature one.</li>
+    <li><span class="sw" style="--c:var(--s-selfdoc)"></span><strong>Self (doc.)</strong>: independent documents sampled from the dense model, each ending at the model's first end-of-text token or after 512 tokens, packed like a corpus.</li>
+  </ul>
+  <p>The sources differ in content and in how their text fills a window. The figure shows the first training windows of the seed-0 runs.</p>
+
+  <figure class="fig l-wide" id="fig-windows" data-fig="windows">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">What a calibration window looks like</h3>
+        <p class="fig-sub">Each bar is one real 2,048-token training window. Gaps are document boundaries; triangles are BOS tokens.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Alpaca packs about twenty short examples per window, WikiText-2 one long article. Llama-3.2-1B's own samples contain BOS tokens the model wrote itself (7.8 per window on average). The <strong>matched-segment</strong> control gives every source 16 segments of 127 tokens after a single BOS, so that only the content differs.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Table 1</a></div></div>
+    </div>
+  </figure>
+
+  <p>Each compressed model is evaluated by perplexity on WikiText-2, C4 and the seven SlimPajama domains; by its divergence from the dense model on held-out text of every source and of six domains chosen independently of the sources; by zero-shot accuracy on seven tasks; and, for one seed, by open-ended generation, long contexts, passkey retrieval, generative tasks and instruction following. The three-seed repetition records every evaluation item, so differences come with paired-bootstrap intervals.</p>
+</section>
+
+<!-- =============================================================== self-generated -->
+<section class="chapter" id="self" aria-labelledby="h-self">
+  <div class="chapter-head">
+    <p class="eyebrow">Theory</p>
+    <h2 id="h-self">Text written by the model itself</h2>
+  </div>
+  <p>The dense model can supply its own calibration data. For the distillation objective of LSP this is more than a substitute for real text. Write \(P_T\) and \(Q_T\) for the distributions that the dense and the compressed model assign to whole sequences. By the chain rule of the Kullback–Leibler divergence,</p>
+  \[ \mathrm{KL}(P_T \,\|\, Q_T) \;=\; \sum_{t=1}^{T} \mathbb{E}_{x_{\le t}\sim P}\; \mathrm{KL}\big(p(\cdot\mid x_{\le t}) \,\big\|\, q(\cdot\mid x_{\le t})\big). \]
+  <div class="prop">
+    <div class="prop-title">Proposition 1</div>
+    <p style="margin:0">If the calibration windows are drawn from the dense model by ancestral sampling at temperature one, the expected training objective equals the sequence-level divergence per token, \(\mathbb{E}_{\mathbf{x}\sim P}\,\mathcal{L} = \mathrm{KL}(P_T\,\|\,Q_T)/T\). For windows drawn from any other distribution, the objective weighs the same per-context divergences by that distribution's contexts instead.</p>
+  </div>
+  <p>The sequence-level divergence is the natural target when the compressed model will replace the dense one for generation. The paper uses the identity to show which divergence each source optimizes, not as a theoretical contribution. You can check it on a model small enough to enumerate:</p>
+
+  <figure class="fig l-wide" id="fig-prefix" data-fig="prefix">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Which contexts the objective looks at</h3>
+        <p class="fig-sub">A toy language model over three tokens, sequences of length three. Hover a context for its numbers.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Only exact samples at temperature one weigh each context as often as the dense model visits it; colder samples concentrate on likely continuations, hotter ones on noisy ones. The expected objective then equals the sequence-level divergence divided by the length. Toy numbers, computed in your browser.</p><div class="fig-tools"></div></div>
+    </div>
+  </figure>
+
+  <p>Two caveats come with the principle. The proposition is about the population objective: in practice the windows form a pool reused over several epochs, and the projectors are fitted to the pool. And long samples of small models drift. The entropy of Llama-3.2-1B's predictions on its own samples grows from 2.6 nats over the first 128 positions to 5.7 over the last 128; Qwen3-1.7B drifts from 3.2 to 4.7 as its text degenerates into high-entropy strings. OPT-1.3B does not drift. Self-generated <em>documents</em>, restarted from a fresh start token at least every 512 tokens, avoid the drift.</p>
+
+  <figure class="fig l-wide" id="fig-entropy" data-fig="entropy">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Entropy along the calibration windows</h3>
+        <p class="fig-sub">The dense model's next-token entropy, averaged over 32 validation windows of each source in buckets of 128 positions.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">For the drifting models, the exact objective of Proposition 1 spends much of its weight on contexts far from natural text. Samples were chosen to be representative and inoffensive; the full pools are regenerated from the public weights by the released scripts.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Figure 1</a></div></div>
+    </div>
+  </figure>
+  <p>Temperature one is also the right temperature in practice: sampling the exact sequences of Llama-3.2-1B at 0.7 or 1.3 instead more than doubles the WikiText-2 and C4 perplexities of the model compressed by 50% (WikiText-2: 123 and 120 against 53.2).</p>
+</section>
+
+<!-- =============================================================== results -->
+<section class="chapter" id="results" aria-labelledby="h-results">
+  <div class="chapter-head">
+    <p class="eyebrow">Results</p>
+    <h2 id="h-results">What the calibration data change</h2>
+  </div>
+  <p>The main grid compresses three models at two ratios with six sources, with one run each; it is repeated with three seeds and an extended evaluation. All figures below are drawn from the run records; switch models and ratios to see each result in every setting the paper reports.</p>
+
+  <h3 id="training"><span class="sec">4.1–4.2</span>Training turns a lottery into specialization</h3>
+  <p>Before training, the whitened initialization depends heavily on the calibration source: at −30% its perplexity varies across sources by a factor of 2.7 to 7.3 on OPT-1.3B, 18 to 108 on Llama-3.2-1B and 4 to 32 on Qwen3-1.7B. The oblique truncation of SVD-LLM depends less on the source, but in the same way, and far more than the 3% SVD-LLM reports for an older model at a lower ratio.</p>
+
+  <figure class="fig l-wide" id="fig-dumbbell" data-fig="dumbbell">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Perplexity before and after training</h3>
+        <p class="fig-sub">Hollow: the untrained whitened initialization. Filled: after training. Optional bar: the oblique truncation of SVD-LLM with the same ranks.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Training lowers perplexity by one to two orders of magnitude and shrinks the spread across sources, but the ranking becomes domain-specific: every model reaches its lowest WikiText-2 perplexity with WikiText-2 calibration and its lowest C4 perplexity with C4 calibration, at both ratios and in each of three seeds.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Figures 2, A1; Table 2</a></div></div>
+    </div>
+  </figure>
+  <div class="takeaway"><b>Takeaway</b>A WikiText-2 perplexity measured after WikiText-2 calibration, the most common number in the low-rank compression literature, measures fit to the calibration domain as much as compression quality.</div>
+
+  <h3 id="specialization"><span class="sec">4.3</span>Each source preserves its own text</h3>
+  <p>The divergence from the dense model on held-out text of every source makes the specialization plain. On the held-out set of each real corpus, the divergence is lowest when calibrating on that corpus, for every model and ratio, with one near-tie. Over the three seeds, with 128 held-out windows per set, the matching source has the lowest divergence in 86 of 90 comparisons; the four exceptions are ties between SlimPajama and self-generated documents on SlimPajama text, on Llama-3.2-1B. Away from the diagonal, narrow sources are costly.</p>
+
+  <figure class="fig l-wide" id="fig-kl" data-fig="klmatrix">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">The specialization matrix</h3>
+        <p class="fig-sub">Divergence KL(p‖q) of each compressed model from the dense model, in nats per token, on held-out text of each source. Rows: calibration source. A stronger shade is farther from the best source for that column.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">The “Self” column holds exact samples of the dense model, so it estimates the sequence-level divergence of Proposition 1. Switch to <strong>three seeds</strong> to add six domains chosen independently of every source: human-written instructions, grade-school math, biomedical abstracts, Python, eight other languages and 19th-century books.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Figures 3, A2; Tables 5, 6, A5</a></div></div>
+    </div>
+  </figure>
+
+  <p id="uniform">Which source is the most uniformly faithful depends on what it is measured on, which is why the panel lets you weigh the sets. Over the five held-out sets, self-generated documents have the lowest geometric-mean relative divergence in all six settings (tied with C4 on OPT-1.3B at −50%), and they stay the most common winner when the sets are weighted at random. Without the held-out samples of the dense model, which favor self-generated calibration, they remain the most uniform only on Llama-3.2-1B; C4 is more uniform on OPT-1.3B and SlimPajama on Qwen3-1.7B. On the six independent domains they are the best source for every domain on Llama-3.2-1B and within 16% of the best on Qwen3-1.7B, while SlimPajama is clearly the most uniform on OPT-1.3B. On Llama-3.1-8B they are the most uniform by all three summaries.</p>
+
+  <p id="mixture">A matched-budget mixture of SlimPajama and self-generated documents, 256 windows each, combines the two. It is the most uniform of the seven calibrations on the four real held-out sets in five of the six settings and tied in the sixth, and it is never more than 11% less uniform than the best calibration, in any setting or summary.</p>
+
+  <figure class="fig l-wide" id="fig-mixture" data-fig="mixture">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Half SlimPajama, half self-generated documents</h3>
+        <p class="fig-sub">Uniform fidelity of the two components and of their mixture, against the other four sources (open circles). 1× is the best of the seven calibrations on every set.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Seed 0 of the extended evaluation. The mixture's perplexities are within 6% of the better component on every corpus, at an accuracy within one point of both.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Table 7</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="domains"><span class="sec">4.3</span>Where specialization costs most</h3>
+  <p>Code and multilingual Wikipedia suffer most from narrow English calibration. At −30%, WikiText-2 calibration multiplies the code perplexity of Llama-3.2-1B by 144 relative to the dense model, and Alpaca multiplies its multilingual Wikipedia perplexity by 97, while SlimPajama and self-generated documents keep every domain within a factor of 7. Calibrating on a single domain takes the specialization further, and pays for it everywhere else.</p>
+
+  <figure class="fig l-wide" id="fig-domains" data-fig="domains">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Perplexity on the seven SlimPajama domains, relative to the dense model</h3>
+        <p class="fig-sub">One logarithmic color scale shared by every panel: the stronger the blue, the farther from the dense model.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Switch the rows to <strong>single domains</strong>: calibrating Llama-3.2-1B (−50%) on the GitHub subset alone brings its code perplexity from 3.56 to 1.60 times that of the dense model, but leaves web, book and Wikipedia text at 9 to 49 times. Related domains benefit together: code calibration also gives the lowest StackExchange perplexity.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Figures 4, 7, A3; Table 8</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="accuracy"><span class="sec">4.2, 4.9</span>Zero-shot accuracy favors instruction data, a little</h3>
+  <p>Accuracy varies much less across sources than perplexity: by 1.7 to 3.5 points on OPT-1.3B and Llama-3.2-1B and 5.0 to 5.4 on Qwen3-1.7B, leaving aside Qwen3's failed exact self-samples at −30%. Without BoolQ, Alpaca is the most accurate source on every model and ratio, though its perplexities are among the worst, and WikiText-2 gives the lowest accuracy of the real sources. BoolQ needs care: most compressed models score below its majority-class rate of 62.2%, the accuracy of always answering yes, so differences on it reflect shifts in answer bias more than reading comprehension.</p>
+
+  <figure class="fig l-wide" id="fig-accuracy" data-fig="accuracy">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Mean zero-shot accuracy by calibration source</h3>
+        <p class="fig-sub">Mean of three seeds (bar: ± one standard deviation), extended evaluation. Choose the score: six tasks without BoolQ, all seven, or BoolQ alone.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Alpaca's lead without BoolQ is significant in five of the six settings of the three small models. It comes from what the examples say, not from the template: the same examples without the template, or their responses alone, are as accurate.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Tables 4, 17, A1–A4</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="where"><span class="sec">4.4</span>Where the data act: initialization and windows</h3>
+  <p>The calibration data act at two stages, the Gram statistics of the initialization and the training windows, and crossing them separates the two. Both matter, and the domain of the initialization survives training. The removed subspaces show why: training moves them very little. The overlap between the subspace a unit removes before and after training averages 0.996 to 0.997 for every model and ratio, while subspaces initialized from different sources overlap only 0.85 to 0.90 and do not come closer during training, even over a schedule three times as long.</p>
+
+  <figure class="fig l-wide" id="fig-where" data-fig="where">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Statistics from one source, windows from another</h3>
+        <p class="fig-sub">Swap the source of the initialization statistics, or look at how far training rotates the removed subspaces.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Training WikiText-2 windows from SlimPajama statistics lowers the C4 perplexity from 102 to 76.2 and the SlimPajama perplexity from 262 to 71.3, while WikiText-2 perplexity rises only from 22.8 to 25.5. Broad statistics with domain windows keep most of the domain fit at a much smaller cost elsewhere.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Table 9; Figure A4</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="amount"><span class="sec">4.5</span>More distinct windows keep helping</h3>
+  <p>At a fixed budget of 512 steps, more distinct calibration windows improve both C4 and self-generated documents, up to 4,096 windows each seen once. Calibration budgets that suffice for training-free methods do not saturate learned ones. The learning curves show what repetition does: with 64 windows the projectors fit the windows they see far more closely than other text of the same source, a gap that closes at 4,096.</p>
+
+  <figure class="fig l-wide" id="fig-size" data-fig="size">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Distinct calibration windows at a fixed number of steps</h3>
+        <p class="fig-sub">Llama-3.2-1B compressed by 50%, C4 against self-generated documents.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">More distinct windows also means fewer passes over each, so this design cannot separate diversity from less repetition. The validation divergence levels off without rising: repetition does not overfit in the usual sense, but limits how well the fit transfers. With only 64 windows, self-generated documents already give a lower SlimPajama perplexity than C4 with 4,096.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Figures 5, 6</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="qwen"><span class="sec">4.6</span>When the model's own samples fail</h3>
+  <p>Exact self-samples are the one source that fails, and on one model. On Qwen3-1.7B the compressed model calibrated on its own long samples is a poor model of real text in every seed, with a severity that varies from run to run, although every run matches the dense model on held-out samples about as well as self-generated documents do. The objective of Proposition 1 is met, but it leaves the behavior on real text loosely constrained.</p>
+
+  <figure class="fig l-wide" id="fig-qwen" data-fig="qwen">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Exact samples against independent documents</h3>
+        <p class="fig-sub">Every seed's C4 perplexity, and the variants of self-generated text that locate the failure.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Neither the length of the samples nor their composition explains the failure: documents work at every length limit from 128 to 2,048 tokens, and they contain as much Chinese, Japanese and code as the exact samples. What differs is the text that follows a document boundary inside a sample, in the order of the C4 perplexities. The same continuation does not harm Llama-3.2-1B, so the controls locate the failure without explaining why it affects one model.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Tables 12, 13, A3, A4</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="first-token"><span class="sec">5.5</span>The first token</h3>
+  <p>For the Llama models the format of the calibration windows matters as much as their content. Every compressed Llama model collapses on inputs that do not start with the BOS token, whatever its calibration source; the dense models are insensitive to the difference. A compressed model served without its BOS token, as in batched or streaming inference that splits a document, would be unusable, although every standard benchmark, which adds BOS, would rate it normally.</p>
+
+  <figure class="fig l-wide" id="fig-bos" data-fig="bos">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Remove the first token</h3>
+        <p class="fig-sub">WikiText-2 perplexity of Llama-3.2-1B compressed by 50%, on windows that start with BOS and on windows that do not.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Calibrating on windows without any BOS removes the collapse (68.1 against 68.5) at a small cost on BOS-prefixed inputs. Attention concentrates on the first token, which acts as an attention sink; a plausible reading is that the compressed model keeps the pathway it was calibrated on and loses the others. OPT-1.3B, whose BOS doubles as the document separator, is unaffected, and Qwen3 has no BOS token.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Tables 22, A10</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="robustness"><span class="sec">4.4–4.10</span>What survives the controls</h3>
+  <p>A comparison of sources could be confounded by how the data are presented and optimized rather than by what they say. The paper tests each alternative explanation in turn. The specialization survives all of them; each line below is recomputed from the records.</p>
+  <figure class="fig l-wide" id="fig-controls" data-fig="controls">
+    <div class="fig-frame">
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Controls are single runs on the settings named in the paper; three seeds resolve the perplexity comparisons and most, but not all, accuracy comparisons.</p><div class="fig-tools"></div></div>
+    </div>
+  </figure>
+
+  <h3 id="scale"><span class="sec">4.10</span>A larger model behaves the same way</h3>
+  <p>Llama-3.1-8B compressed with all six sources, three seeds at −30% and one at −50%, shows the same pattern with wider gaps. Before training the sources differ up to 594-fold at −50%; after training WikiText-2 calibration gives the lowest WikiText-2 perplexity and C4 the lowest C4 perplexity, narrow sources pay elsewhere (WikiText-2 calibration leaves code at 220 times the dense perplexity at −30%), and self-generated documents are again the most uniformly faithful source.</p>
+  <figure class="fig l-wide" id="fig-scale" data-fig="scale">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Llama-3.1-8B by calibration source</h3>
+        <p class="fig-sub">Bold: the best source for the measure.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Alpaca leads in accuracy, by 0.6 points over C4 at −30% (within the noise) and 2.1 points at −50% (significant). The exact self-samples, which failed on Qwen3-1.7B, work here as on Llama-3.2-1B but give the least accurate models.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Table 18; Figure 7</a></div></div>
+    </div>
+  </figure>
+
+  <h3 id="behavior"><span class="sec">4.11, 5.4</span>Fidelity is not utility</h3>
+  <p>The comparisons rank calibration sources for a given compressor, ratio and budget; they do not show that any compressed model can replace its dense model. Beyond perplexity and multiple choice, compression costs more, and the calibration source matters as much. Abilities that the calibration windows do not exercise can disappear: after Alpaca calibration, the compressed Llama-3.2-1B no longer retrieves a passkey from its context. Given more tokens, it continues the prompt with generic text, “the key to the door”, instead of copying the key.</p>
+  <figure class="fig l-wide" id="fig-behavior" data-fig="behavior">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">What compression keeps, and what it saves</h3>
+        <p class="fig-sub">Each row places the dense model (black diamond) and the six compressed models of one capability.</p>
+      </div></div>
+      <div class="controls"></div>
+      <div class="fig-body"></div>
+      <div class="fig-foot"><p class="caption">Generative tasks that need several reasoning steps or recalled facts do not survive compression whatever the source: Qwen3-1.7B solves 70.1% of GSM8K problems, and at most 4.7% after compression by 30%. The merged models save 24 to 46% of parameter memory but, as two consecutive matrix products in eager PyTorch, decode 8 to 15% more slowly at batch size one.</p><div class="fig-tools"><a class="paper-ref" href="https://doi.org/10.3390/informatics13110201">Paper, Tables 19–21</a></div></div>
+    </div>
+  </figure>
+</section>
+
+<!-- =============================================================== practice -->
+<section class="chapter" id="practice" aria-labelledby="h-practice">
+  <div class="chapter-head">
+    <p class="eyebrow">Discussion</p>
+    <h2 id="h-practice">Choosing calibration data</h2>
+  </div>
+  <p>Two consequences follow for reporting. A perplexity measured on the corpus the model was calibrated on overstates its quality elsewhere, so the calibration source should accompany every reported perplexity, and comparisons between methods should hold it fixed. And no single number summarizes a compressed model: perplexity rewards the matching domain, zero-shot accuracy rewards instruction data, and the two disagree on which source is best. Measuring the divergence from the dense model on several held-out sources exposes the trade-off directly and needs no labels.</p>
+
+  <figure class="fig l-wide" id="fig-recommend" data-fig="recommend">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">Which calibration data should I use?</h3>
+        <p class="fig-sub">The paper's recommendations as three questions. Each answer links to its evidence.</p>
+      </div></div>
+      <div class="fig-body"></div>
+    </div>
+  </figure>
+
+  <div class="note">
+    <strong>Limitations.</strong> The main experiments compress models of 1.2 to 1.7 billion parameters, with a check on an 8-billion-parameter model; larger models were out of reach of one GPU. All corpora are English and the zero-shot benchmarks are multiple-choice; behavior is evaluated with one seed and one ratio, and instruction following on one 1.2-billion-parameter model. One learned method is studied in depth and checked against a second on two models at one ratio. The controls are single runs. The role of the first token is supported by the density of BOS tokens and by an intervention on the calibration format, not by an analysis of attention circuits.
+  </div>
+</section>
+
+<!-- =============================================================== reproduce -->
+<section class="chapter" id="reproduce" aria-labelledby="h-reproduce">
+  <div class="chapter-head">
+    <p class="eyebrow">Open science</p>
+    <h2 id="h-reproduce">Reproduce every number</h2>
+  </div>
+  <p>The code repository holds the reimplementation of LSP, the definition of every job behind the paper, the records of all runs, and the scripts that turn the records into every table and figure of the paper and the statistics its text quotes. Rebuilding them needs only a CPU.</p>
+  <div class="stats l-wide">
+    <div class="stat"><div class="v">459</div><div class="l">runs, each with its configuration, metrics, training log and environment</div></div>
+    <div class="stat"><div class="v">≈325</div><div class="l">GPU-hours on A100, H100 and H200 GPUs</div></div>
+    <div class="stat"><div class="v">1 min</div><div class="l">to rebuild every table and figure from the records, on a CPU</div></div>
+    <div class="stat"><div class="v">0</div><div class="l">numbers typed by hand: tests check the results byte for byte against the records</div></div>
+  </div>
+  <div class="copy-wrap">
+    <pre class="code" id="cmd"><span class="c"># the environment pinned by uv.lock, then the CPU tests</span>
+git clone https://github.com/calibrank/calibrank.git
+cd calibrank
+make setup
+<span class="c"># records/ -> results/: run tables, the paper's tables and figures, quoted numbers</span>
+make results
+make check</pre>
+    <button class="linkbtn copy-btn" type="button" data-copy="#cmd">Copy</button>
+  </div>
+  <p>Every chart on this page is drawn from the same records, and the build checks 122 of its numbers against the paper's printed tables. Browse the runs themselves below; each name links to its record.</p>
+
+  <figure class="fig l-wide" id="fig-explorer" data-fig="explorer">
+    <div class="fig-frame">
+      <div class="fig-head"><div>
+        <h3 class="fig-title">All runs</h3>
+        <p class="fig-sub">The main grid (32 held-out windows per source) and the extended evaluation (three seeds, 128 windows, six independent domains, per-item records).</p>
+      </div></div>
+      <div class="fig-body"></div>
+    </div>
+  </figure>
+</section>
+
+<!-- =============================================================== cite -->
+<section class="chapter" id="cite" aria-labelledby="h-cite">
+  <div class="chapter-head">
+    <p class="eyebrow">Citation</p>
+    <h2 id="h-cite">Cite this work</h2>
+  </div>
+  <p>Pham, V.T. When Calibration Data Become Training Data: Specialization and Self-Generated Text in Learned Low-Rank Compression of Large Language Models. <em>Informatics</em> <strong>2026</strong>, <em>13</em>, 201. <a href="https://doi.org/10.3390/informatics13110201">https://doi.org/10.3390/informatics13110201</a></p>
+  <div class="bib copy-wrap">
+<pre id="bibtex" class="no-math">@article{pham2026calibration,
+  author         = {Pham, Van Tien},
+  title          = {When Calibration Data Become Training Data: Specialization and
+                    Self-Generated Text in Learned Low-Rank Compression of Large
+                    Language Models},
+  journal        = {Informatics},
+  volume         = {13},
+  year           = {2026},
+  number         = {11},
+  article-number = {201},
+  url            = {https://www.mdpi.com/2227-9709/13/11/201},
+  issn           = {2227-9709},
+  doi            = {10.3390/informatics13110201}
+}</pre>
+    <button class="linkbtn copy-btn" type="button" data-copy="#bibtex">Copy BibTeX</button>
+  </div>
+  <p class="muted" style="font-size:16px;margin-top:18px">The compression method studied is learned subspace projections: M. Bini, A. Christensen, S. Alaniz, J. Goldfeder, O. Winther, Y. LeCun, R. Shwartz-Ziv and Z. Akata, <em>Learning Functional Subspaces for Neural Network Compression</em>, <a href="https://arxiv.org/abs/2609.40127">arXiv:2609.40127</a>, 2026, reimplemented in the code repository.</p>
+</section>
+
+<footer class="footer l-wide">
+  <div class="footer-grid">
+    <div>
+      <h5>When Calibration Data Become Training Data</h5>
+      <p style="margin:0">Companion page to the article published in <em>Informatics</em> (MDPI) under the <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> license. Text and figures here adapt the article under the same license; the site's code is under the Apache License 2.0. Questions and corrections are welcome as <a href="https://github.com/calibrank/calibrank/issues">issues on the code repository</a>.</p>
+    </div>
+    <div>
+      <h5>Paper</h5>
+      <ul><li><a href="https://doi.org/10.3390/informatics13110201">DOI 10.3390/informatics13110201</a></li><li><a href="https://www.mdpi.com/2227-9709/13/11/201/pdf">PDF</a></li><li><a href="#cite">BibTeX</a></li></ul>
+    </div>
+    <div>
+      <h5>Code and data</h5>
+      <ul><li><a href="https://github.com/calibrank/calibrank">calibrank/calibrank</a></li><li><a href="https://github.com/calibrank/calibrank/tree/main/records">Run records</a></li><li><a href="https://github.com/calibrank/calibrank.github.io">Source of this page</a></li></ul>
+    </div>
+  </div>
+</footer>
+</main>
+</body>
+</html>
